@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block css %}
+
+<style>
+/* Boutons TO, CC et BCC */
+.recipient-toggle {
+    font-size: 11px;
+    padding: 3px 6px;
+}
+
+/* Liste des adresses : environ 10 lignes visibles */
+.recipient-list {
+    max-height: 180px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 8px;
+    margin-top: 4px;
+    background-color: #f8f9fa;
+}
+
+/* Adresses compactes */
+.recipient-address {
+    font-size: 11px;
+    line-height: 18px;
+    overflow-wrap: anywhere;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="col-md-12">
+
+    <h3>
+        Email Logs
+
+        {% if page_obj.paginator.count %}
+            <small class="text-muted">
+                ({{ page_obj.paginator.count }})
+            </small>
+        {% endif %}
+    </h3>
+
+    <!-- Filters -->
+
+    <form method="get" id="filter-form" class="mb-4">
+
+        <div class="card bg-light">
+
+            <div class="card-header">
+                <h5 class="mb-0">Filters</h5>
+            </div>
+
+            <div class="card-body">
+
+                <!-- Dates -->
+
+                <div class="row g-3 mb-3">
+
+                    <div class="col-12 col-md-6">
+
+                        <label for="date_from" class="form-label">
+                            Start date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date_from"
+                            name="date_from"
+                            class="form-control"
+                            value="{{ date_from }}"
+                        >
+
+                    </div>
+
+                    <div class="col-12 col-md-6">
+
+                        <label for="date_to" class="form-label">
+                            End date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date_to"
+                            name="date_to"
+                            class="form-control"
+                            value="{{ date_to }}"
+                        >
+
+                    </div>
+
+                </div>
+
+                <!-- Other filters -->
+
+                <div class="row g-3">
+
+                    <div class="col-12 col-md-6 col-lg-3">
+
+                        <label for="status" class="form-label">
+                            Status
+                        </label>
+
+                        <select
+                            id="status"
+                            name="status"
+                            class="form-control"
+                        >
+
+                            <option value="">All statuses</option>
+
+                            {% for value, label in status_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if status == value %}selected{% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+
+                        <label
+                            for="notification_type"
+                            class="form-label"
+                        >
+                            Notification type
+                        </label>
+
+                        <select
+                            id="notification_type"
+                            name="notification_type"
+                            class="form-control"
+                        >
+
+                            <option value="">
+                                All notification types
+                            </option>
+
+                            {% for item in notification_types %}
+                                <option
+                                    value="{{ item }}"
+                                    {% if notification_type == item %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ item }}
+                                </option>
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-5">
+
+                        <label for="search" class="form-label">
+                            Search
+                        </label>
+
+                        <input
+                            type="text"
+                            id="search"
+                            name="search"
+                            class="form-control"
+                            placeholder="Search subject..."
+                            value="{{ search }}"
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer d-flex justify-content-between">
+
+                <button type="submit" class="btn btn-sm btn-primary">
+                    Filter
+                </button>
+
+                <a
+                    href="{% url 'emaillogs' %}"
+                    class="btn btn-sm btn-secondary"
+                >
+                    Reset
+                </a>
+
+            </div>
+
+        </div>
+
+    </form>
+
+    <!-- Results -->
+
+    {% if page_obj.paginator.count %}
+
+        <div class="text-muted mb-3">
+
+            Showing
+            {{ page_obj.start_index }}
+            –
+            {{ page_obj.end_index }}
+            of
+            {{ page_obj.paginator.count }}
+            logs
+
+        </div>
+
+    {% endif %}
+
+    {% include "includes/pagination.html" %}
+
+    <div class="table-responsive">
+
+        <table class="table table-boxed table-hover">
+
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Notification</th>
+                    <th>Subject</th>
+                    <th>Recipients</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for log in page_obj %}
+
+                    <tr>
+
+                        <!-- Date -->
+
+                        <td class="text-nowrap">
+                            {{ log.created_at|date:"d.m.Y H:i:s" }}
+                        </td>
+
+                        <!-- Notification type -->
+
+                        <td>
+                            {{ log.notification_type }}
+                        </td>
+
+                        <!-- Subject -->
+
+                        <td>
+                            {{ log.subject }}
+                        </td>
+
+                        <!-- Recipients -->
+
+                        <td style="min-width: 150px;">
+
+                            {% for recipient_type, addresses in log.recipients.items %}
+
+                                {% if addresses %}
+                                    <div class="mb-2">
+
+                                        <button
+                                            class="collapse-title collapse-title-desktop collapsed recipient-toggle"
+                                            type="button"
+                                            data-toggle="collapse"
+                                            data-target="#recipients-{{ log.id }}-{{ recipient_type }}"
+                                            aria-expanded="false"
+                                            aria-controls="recipients-{{ log.id }}-{{ recipient_type }}"
+                                        >
+                                            {{ recipient_type|upper }} ({{ addresses|length }})
+                                        </button>
+
+                                        <div
+                                            class="collapse collapse-item collapse-item-desktop"
+                                            id="recipients-{{ log.id }}-{{ recipient_type }}"
+                                        >
+                                            <div class="card card-body recipient-list">
+
+                                                {% for address in addresses %}
+                                                    <div class="recipient-address">
+                                                        {{ address }}
+                                                    </div>
+                                                {% endfor %}
+
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                {% endif %}
+
+                            {% endfor %}
+
+                        </td>
+                        
+                        <!-- Status -->
+
+                        <td>
+
+                            {% if log.status == "sent" %}
+
+                                <span class="badge rounded-pill bg-success px-3 py-2">
+                                    {{ log.get_status_display }}
+                                </span>
+
+                            {% elif log.status == "failed" %}
+
+                                <span class="badge rounded-pill bg-danger px-3 py-2">
+                                    {{ log.get_status_display }}
+                                </span>
+
+                            {% elif log.status == "pending" %}
+
+                                <span class="badge rounded-pill bg-warning text-dark px-3 py-2">
+                                    {{ log.get_status_display }}
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <!-- Details -->
+
+                        <td style="min-width: 150px; max-width: 400px;">
+
+                            {% if log.error_message %}
+
+                                <button
+                                    class="collapse-title collapse-title-desktop collapsed"
+                                    type="button"
+                                    data-toggle="collapse"
+                                    data-target="#email-error-{{ log.id }}"
+                                    aria-expanded="false"
+                                    aria-controls="email-error-{{ log.id }}"
+                                >
+                                    View error
+                                </button>
+
+                                <div
+                                    class="collapse collapse-item collapse-item-desktop"
+                                    id="email-error-{{ log.id }}"
+                                >
+
+                                    <div
+                                        class="card card-body"
+                                        style="overflow-wrap: anywhere;"
+                                    >
+                                        {{ log.error_message }}
+                                    </div>
+
+                                </div>
+
+                            {% else %}
+
+                                <span class="text-muted">—</span>
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+                {% empty %}
+
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No email logs found.
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+    {% include "includes/pagination.html" %}
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+
+<script>
+document.getElementById("filter-form").addEventListener(
+    "submit",
+    function () {
+        this.querySelectorAll("input, select").forEach(function (field) {
+            if (!field.value) {
+                field.disabled = true;
+            }
+        });
+    }
+);
+</script>
+
+{% endblock %}

@@ -1,0 +1,50 @@
+- name: Django - CronJobs
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: "{{ django.name }}-{{ item.name }}"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        schedule: "{{ item.schedule }}"
+        timeZone: "Europe/Zurich"
+        concurrencyPolicy: Forbid
+        successfulJobsHistoryLimit: 3
+        failedJobsHistoryLimit: 3
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                  - name: "{{ item.name }}"
+                    image: "{{ registry }}/django-app:{{ images.django_app.version }}"
+                    imagePullPolicy: Always
+                    workingDir: /app/src
+                    command:
+                      - python
+                      - manage.py
+                      - "{{ item.management_command }}"
+                    envFrom:
+                      - secretRef:
+                          name: django-secrets
+                    resources:
+                      requests:
+                        cpu: "50m"
+                        memory: "128Mi"
+                      limits:
+                        memory: "128Mi"
+                imagePullSecrets:
+                  - name: "{{ pull_secret }}"
+  loop:
+    - name: check-users
+      schedule: "30 2 * * *"
+      management_command: check_professors
+    - name: cleanup
+      schedule: "0 2 * * *"
+      management_command: clean_users_without_access
+    - name: check-campaign-dates
+      schedule: "0 4 * * *"
+      management_command: check_campaign

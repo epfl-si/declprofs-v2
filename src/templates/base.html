@@ -1,0 +1,213 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>DeclProfs</title>
+    <link rel="icon" href="https://epfl-si.github.io/elements/svg/epfl-logo.svg">
+    {% block css %}
+    {% endblock %}
+    <link rel="stylesheet" href="https://web2018.epfl.ch/8.7.0/css/elements.min.css">
+    <style>
+        body > .site > .main-container {
+            flex-grow: 0;
+        }
+
+        ul > li::before {
+            content: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="site d-flex flex-column min-vh-100">
+        <header role="banner" class="header header-light">
+            <div class="header-light-content">
+                <a class="logo" href="https://www.epfl.ch">
+                    <img src="{% static 'img/epfl-logo.svg' %}" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+                </a>
+                <p class="site-title">
+                    <a href="#">Professor outside activities</a>
+                </p>
+                <ul class="nav-header d-none d-xl-flex">
+                    {% include "includes/menu.html" %}
+                </ul>
+
+                <div class="nav-user user-login mr-lg-2">
+                    <a href="#" class="user-login-link">
+                        <svg class="icon feather" aria-hidden="true">
+                            <use xlink:href="#user"></use>
+                        </svg>
+                        {% if user.is_authenticated %}
+                        <span class="label">{{ user.first_name }} {{ user.last_name }}</span>
+                        {% else %}
+                        <span class="label">Login</span>
+                        {% endif %}
+                    </a>
+                </div>
+
+                <button class="btn btn-secondary nav-toggle-mobile d-xl-none">
+                    <span class="label">Menu</span>
+                    <div class="hamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-container mb-4">
+            <nav class="nav-main" id="main-navigation">
+                <div class="nav-wrapper">
+                    <div class="nav-container current-menu-parent">
+                        <ul class="nav-menu">
+                           {% include "includes/menu.html" %}
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+        </div>
+
+        <hr class="darker">
+
+        <main class="content">
+            {% block content %}
+            {% endblock %}
+        </main>
+
+        <div class="mt-5"></div>
+        
+        <div class="mt-auto">
+            <div class="bg-gray-100 pt-5">
+                <div class="container">
+                    <footer class="footer-light">
+                        <div class="row">
+                            <div class="col-6 mx-auto mx-md-0 mb-4 col-md-3 col-lg-2">
+                                <a href="//www.epfl.ch">
+                                    <img alt="Logo EPFL, Ecole polytechnique fédérale de Lausanne" class="img-fluid" src="//web2018.epfl.ch/8.6.0/icons/epfl-logo.svg">
+                                </a>
+                            </div>
+                            <div class="col-md-9 col-lg-10 mb-4">
+                                <div class="ml-md-2 ml-lg-5">
+                                    <ul class="list-inline list-unstyled">
+                                        <li class="list-inline-item">Contact</li>
+                                        <li class="list-inline-item text-muted pl-3"><small>EPFL  CH-1015 Lausanne</small></li>
+                                        <li class="list-inline-item text-muted pl-3"><small>+41 21 693 11 11</small></li>
+                                    </ul>
+                                    <div class="footer-light-socials">
+                                        <p class="footer-title footer-title-no-underline">
+                                            Follow the pulses of EPFL on social networks
+                                        </p>
+                                        <ul class="social-icon-list list-inline">
+                                            <li>
+                                                <a class="social-icon social-icon-facebook social-icon-negative" href="https://www.facebook.com/epflcampus" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-facebook"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                        Follow us on Facebook.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="social-icon social-icon-instagram social-icon-negative" href="https://instagram.com/epflcampus" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-instagram"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                    Follow us on Instagram.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="social-icon social-icon-linkedin social-icon-negative" href="https://www.linkedin.com/school/epfl/" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-linkedin"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                        Follow us on LinkedIn.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="social-icon social-icon-mastodon social-icon-negative" href="https://social.epfl.ch/@epfl/" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-mastodon"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                        Follow us on Mastodon.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="social-icon social-icon-x social-icon-negative" href="https://x.com/epfl_en" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-x"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                        Follow us on X.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="social-icon social-icon-youtube social-icon-negative" href="https://www.youtube.com/user/epflnews" rel="noopener" target="_blank">
+                                                    <svg aria-hidden="true" class="icon">
+                                                        <use xlink:href="#icon-youtube"></use>
+                                                    </svg>
+                                                    <span class="sr-only">
+                                                        Follow us on Youtube.
+                                                    </span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <div class="footer-legal">
+                                        <div class="footer-legal-links">
+                                            <a href="//www.epfl.ch/about/overview/regulations-and-guidelines/disclaimer/">
+                                                Accessibility
+                                            </a>
+                                            <a href="//www.epfl.ch/about/overview/regulations-and-guidelines/disclaimer/">
+                                                Legal notice
+                                            </a>
+                                            <a href="//go.epfl.ch/privacy-policy/">
+                                                Privacy Policy
+                                            </a>
+                                            <a href="//go.epfl.ch/guidelines">
+                                                Charter
+                                            </a>
+                                        </div>
+                                        <div>
+                                            <p>
+                                                © 2026 EPFL, all rights reserved
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </footer>
+                    <button class="btn btn-primary btn-back-to-top show" id="back-to-top">
+                        <span class="sr-only">
+                            Back to top
+                        </span>
+                        <svg aria-hidden="true" class="icon"><use xlink:href="#icon-chevron-top"></use></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>    
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://web2018.epfl.ch/8.7.0/js/elements.min.js"></script>
+    <script>
+        svgPath = 'https://web2018.epfl.ch/8.3.0/icons/icons.svg';
+        featherSvgPath ='https://web2018.epfl.ch/8.3.0/icons/feather-sprite.svg';
+    </script>
+    
+    {% block script %}
+    {% endblock %}
+
+</body>
+</html>

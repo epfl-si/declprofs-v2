@@ -1,0 +1,8 @@
+- name: Deploy nginx service
+  ansible.builtin.include_tasks:
+    file: nginx.yml
+    apply:
+      tags:
+        - nginx
+  tags:
+    - nginx

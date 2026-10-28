@@ -1,0 +1,111 @@
+- name: Deploy Django web application
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ django.name }}"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        replicas: "{{ resources.django.replicas }}"
+        selector:
+          matchLabels:
+            app: "{{ django.name }}"
+        template:
+          metadata:
+            labels:
+              app: "{{ django.name }}"
+          spec:
+            containers:
+              - name: "{{ django.name }}"
+                image: "{{ registry }}/django-app:{{ images.django_app.version }}"
+                imagePullPolicy: Always
+                envFrom:
+                  - secretRef:
+                      name: django-secrets
+                ports:
+                  - containerPort: 8000
+                    name: django-port
+                # readinessProbe:
+                #   httpGet:
+                #     path: /healthz/
+                #     port: 8000
+                # livenessProbe:
+                #   httpGet:
+                #     path: /healthz/
+                #     port: 8000
+                resources:
+                  requests:
+                    cpu: "{{ resources.django.requests.cpu }}"
+                    memory: "{{ resources.django.requests.memory }}"
+                  limits:
+                    memory: "{{ resources.django.limits.memory }}"
+                volumeMounts:
+                  - name: django-static
+                    mountPath: /app/src/staticfiles
+                  - name: django-media
+                    mountPath: /app/src/media
+            volumes:
+              - name: django-static
+                persistentVolumeClaim:
+                  claimName: django
+              - name: django-media
+                persistentVolumeClaim:
+                  claimName: django-media
+            imagePullSecrets:
+              - name: "{{ pull_secret }}"
+
+- name: Django-app - Service
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ django.name }}"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        type: ClusterIP
+        selector:
+          app: "{{ django.name }}"
+        ports:
+          - name: django
+            port: 8000
+            targetPort: 8000
+
+- name: Create storage for web app
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: django
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        accessModes:
+          - ReadWriteMany
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: "{{ resources.django.storage }}"
+        storageClassName: "{{ storage_class.name }}"
+
+- name: Create storage for Django media
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: django-media
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        accessModes:
+          - ReadWriteMany
+        volumeMode: Filesystem
+        resources:
+          requests:
+            storage: "{{ resources.django.storage }}"
+        storageClassName: "{{ storage_class.name }}"

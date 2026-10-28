@@ -1,0 +1,323 @@
+---
+- name: Create web Service
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ app.name }}-grist"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app.kubernetes.io/name: "{{ app.name }}"
+          app.kubernetes.io/component: grist
+      spec:
+        selector:
+          app.kubernetes.io/name: "{{ app.name }}"
+          app.kubernetes.io/component: grist
+        ports:
+          - name: http
+            protocol: TCP
+            port: 80
+            targetPort: http
+
+- name: Create web Route
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: "{{ app.name }}-grist"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app.kubernetes.io/name: "{{ app.name }}"
+          app.kubernetes.io/component: grist
+          route: private
+      spec:
+        host: "{{ app.domain }}"
+        to:
+          kind: Service
+          name: "{{ app.name }}-grist"
+        port:
+          targetPort: http
+        tls:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+
+- name: Deploy grist application
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ app.name }}-grist"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app.kubernetes.io/name: "{{ app.name }}"
+          app.kubernetes.io/component: grist
+      spec:
+        replicas: "{{ resources.grist.replicas }}"
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 1
+            maxSurge: 1
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: "{{ app.name }}"
+            app.kubernetes.io/component: grist
+        template:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "{{ app.name }}"
+              app.kubernetes.io/component: grist
+          spec:
+            initContainers:
+              - name: patch-grist-js
+                image: "{{ registry }}/grist:{{ images.grist.version }}"
+                resources:
+                  requests:
+                    cpu: 10m
+                    memory: 250Mi
+                  limits:
+                    memory: 350Mi
+                command: ['sh', '-c']
+                args:
+                  - |
+                    set -e
+                    
+                    echo "========================================="
+                    echo "Copying /grist/_build to writable volume"
+                    echo "========================================="
+                    cp -r /grist/_build/* /patched-build/
+                    
+                    echo ""
+                    echo "========================================="
+                    echo "Patching ICreate.js"
+                    echo "========================================="
+                    cd /patched-build/app/server/lib
+                    
+                    if [ ! -f "ICreate.js" ]; then
+                      echo "ERROR: ICreate.js not found!"
+                      exit 1
+                    fi
+                    
+                    echo "BEFORE patch:"
+                    grep -A3 -B3 "custom.css" ICreate.js || true
+                    
+                    # Patch: ajouter le script AVANT la ligne custom.css
+                    sed -i "/elements.push('<link id=\"grist-custom-css\"/i\\            elements.push('<script src=\"conditional-css.js\"><\/script>');" ICreate.js
+                    
+                    echo ""
+                    echo "AFTER patch:"
+                    grep -A7 -B5 "custom.css" ICreate.js || true
+                    
+                    echo ""
+                    echo "✓ Patch completed successfully"
+                volumeMounts:
+                  - name: patched-build
+                    mountPath: /patched-build
+            containers:
+              - name: grist
+                image: "{{ registry }}/grist:{{ images.grist.version }}"
+                imagePullPolicy: Always
+                ports:
+                  - containerPort: 8484
+                    name: http
+                envFrom:
+                  - secretRef:
+                      name: "{{ app.name }}-grist-secrets"
+                resources:
+                  requests:
+                    cpu: "{{ resources.grist.requests.cpu }}"
+                    memory: "{{ resources.grist.requests.memory }}"
+                  limits:
+                    memory: "{{ resources.grist.limits.memory }}"
+                readinessProbe:
+                  tcpSocket:
+                    port: 8484
+                  initialDelaySeconds: 20
+                  periodSeconds: 10
+                livenessProbe:
+                  tcpSocket:
+                    port: 8484
+                  initialDelaySeconds: 20
+                  periodSeconds: 30
+                volumeMounts:
+                  - name: data
+                    mountPath: /persist
+                  - name: patched-build
+                    mountPath: /grist/_build
+                  - name: custom-css
+                    mountPath: /grist/static/custom.css
+                    subPath: custom.css
+                  - name: conditional-css-js
+                    mountPath: /grist/static/conditional-css.js
+                    subPath: conditional-css.js                  
+            volumes:
+              - name: data
+                persistentVolumeClaim:
+                  claimName: "{{ app.name }}-grist-storage"
+              - name: patched-build
+                emptyDir: {}
+              - name: custom-css
+                configMap:
+                  name: "{{ app.name }}-custom-css"
+              - name: conditional-css-js
+                configMap:
+                  name: "{{ app.name }}-conditional-css-js"
+            imagePullSecrets:
+              - name: "{{ pull_secret }}"
+
+- name: Create config map custom-css
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        namespace: "{{ inventory_hostname }}"
+        name: "{{ app.name }}-custom-css"
+      data:
+        custom.css: |
+
+          nav[aria-labelledby="grist-tools-heading"] {
+          display: none !important;
+          }
+
+          .test-dp-add-new,
+          button.test-dp-add-new {
+          display: none !important;
+          }
+
+          div:has(> .test-bc-home) {
+            display: none !important;
+          }
+
+          .test-bc-home,
+          .test-bc-workspace,
+          .test-bc-workspace-ns,
+          .test-bc-doc,
+          .test-bc-page,
+          .test-bc-separator {
+            display: none !important;
+          }
+
+
+          .test-dm-logo,
+          ._cssAppLogo {
+            background-image: url('https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg') !important;
+            background-color: #f7f7f7 !important;
+            background-size: contain !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+            width: 120px !important;
+            height: 40px !important;
+            min-width: 120px !important;
+          }
+
+          ._cssOrg .test-dm-orgname {
+          display: none;
+          background: #f7f7f7 !important;
+          background-color: #f7f7f7 !important;
+          }
+
+          ._cssOrg {
+          pointer-events: none;   
+          cursor: default;
+          background-color: #f7f7f7 !important;
+          }
+
+
+          ._cssOrg ._grain543_,
+          ._cssOrg ._grain544_ {
+          display: none;
+          background-color: #f7f7f7 !important;
+          }
+
+          ._cssOrg:hover,
+          ._cssOrg:active,
+          ._cssOrg:focus {
+          background: #f7f7f7 !important;
+          background-color: #f7f7f7 !important;
+          }
+
+          .test-tb-search-wrapper,
+          .test-open-discussion,
+          .test-tb-share {
+          display: none !important;
+          }
+
+          ul[aria-label="liste des utilisateurs actifs"],
+          button[aria-label="Ouvrir le panneau de création"] {
+          display: none !important;
+          }
+
+- name: Create config map conditional-css-js
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        namespace: "{{ inventory_hostname }}"
+        name: "{{ app.name }}-conditional-css-js"
+      data: 
+        conditional-css.js: |
+
+          (function() {
+            console.log('✓ conditional-css.js loaded');
+            
+            function disableCustomCSS() {
+              console.log('→ Disabling custom CSS...');
+              
+              const customCss = document.getElementById('grist-custom-css');
+              if (customCss) {
+                customCss.disabled = true;
+                customCss.remove();
+                console.log('  ✓ Custom CSS removed');
+              } else {
+                console.log('  ⚠ Custom CSS not found (yet)');
+              }
+              
+              if (document.body) {
+                document.body.classList.add('show-all');
+                console.log('  ✓ Added show-all class to body');
+              }
+            }
+            
+            function checkAndApply() {
+              const hostname = window.location.hostname;
+              const urlParams = new URLSearchParams(window.location.search);
+              
+              const shouldShowAll = 
+                hostname.includes('admin') || 
+                urlParams.get('showall') === '1';
+              
+              if (shouldShowAll) {
+                console.log('→ Show All mode activated');
+                disableCustomCSS();
+              } else {
+                console.log('→ Normal mode - Custom CSS active');
+              }
+            }
+            
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', checkAndApply);
+              console.log('  ⏳ Waiting for DOM to load...');
+            } else {
+              checkAndApply();
+            }
+            
+            window.addEventListener('load', function() {
+              let lastUrl = location.href;
+              new MutationObserver(function() {
+                const url = location.href;
+                if (url !== lastUrl) {
+                  lastUrl = url;
+                  console.log('→ URL changed, re-checking...');
+                  checkAndApply();
+                }
+              }).observe(document.body, {subtree: true, childList: true});
+            });
+            
+          })();

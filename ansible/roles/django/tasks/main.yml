@@ -1,0 +1,32 @@
+- name: Ensure Secrets
+  ansible.builtin.include_tasks:
+    file: secrets.yml
+    apply:
+      tags:
+        - django
+        - django.secrets
+  tags:
+    - django
+    - django.secrets
+
+- name: Deploy Web Application
+  ansible.builtin.include_tasks:
+    file: django.yml
+    apply:
+      tags:
+        - django
+        - django.web
+  tags:
+    - django
+    - django.web
+
+- name: Crons
+  ansible.builtin.include_tasks:
+    file: crons.yml
+    apply:
+      tags:
+        - django
+        - django.crons
+  tags:
+    - django
+    - django.crons

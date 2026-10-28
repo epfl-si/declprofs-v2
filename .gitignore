@@ -1,0 +1,20 @@
+# Coverage
+.coverage
+htmlcov/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ansible
+ansible-deps-cache
+
+# Staticfiles
+staticfiles/
+
+# Env variables
+.env.*
+
+# Static images
+src/media/tinymce/

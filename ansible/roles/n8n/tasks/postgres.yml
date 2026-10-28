@@ -1,0 +1,34 @@
+- name: Create database credentials secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ n8n.name }}-db-credentials"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app: "{{ n8n.name }}"
+          cnpg.io/reload: "true"
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: "{{ database.n8n.user }}"
+        password: "{{ secrets.database.n8n.password }}"
+        database: "{{ database.n8n.name }}"
+
+- name: Create Database in PostgreSQL Cluster
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: postgresql.cnpg.io/v1
+      kind: Database
+      metadata:
+        name: "{{ n8n.name }}"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        cluster:
+          name: "{{ database.cluster }}"
+        name: "{{ database.n8n.name }}"
+        owner: "{{ database.n8n.user }}"
+        passwordSecret:
+          name: "{{ n8n.name }}-db-credentials"

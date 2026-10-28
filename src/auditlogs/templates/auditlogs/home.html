@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+<style>
+.select2-container .select2-selection--single {
+    height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.select2-container .select2-selection.is-invalid {
+    border-color: #dc3545 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="col-md-12">
+
+    <h3>
+        Audit Logs
+
+        {% if page_obj.paginator.count %}
+        <small class="text-muted">
+            ({{ page_obj.paginator.count }})
+        </small>
+        {% endif %}
+    </h3>
+
+    <!-- Filters -->
+    <form method="get" id="filter-form" class="mb-4">
+
+        <div class="card bg-light">
+
+            <div class="card-header">
+                <h5 class="mb-0">Filters</h5>
+            </div>
+
+            <div class="card-body">
+
+                <!-- Dates -->
+                <div class="row g-3 mb-3">
+
+                    <div class="col-12 col-md-6">
+                        <label for="date_from" class="form-label">
+                            Start date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date_from"
+                            name="date_from"
+                            class="form-control"
+                            value="{{ date_from }}"
+                        >
+                    </div>
+
+                    <div class="col-12 col-md-6">
+                        <label for="date_to" class="form-label">
+                            End date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="date_to"
+                            name="date_to"
+                            class="form-control"
+                            value="{{ date_to }}"
+                        >
+                    </div>
+
+                </div>
+
+                <!-- Other filters -->
+                <div class="row g-3">
+
+                    <!-- Performed by -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="performed_by" class="form-label">
+                            Performed by
+                        </label>
+
+                        <select
+                            id="performed_by"
+                            name="performed_by"
+                            class="form-control select2-user"
+                            style="width:100%;"
+                        >
+                            <option value="">All users</option>
+
+                            {% for person in users %}
+                            <option
+                                value="{{ person.id }}"
+                                {% if performed_by == person.id|stringformat:"s" %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ person }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Owner -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="owner" class="form-label">
+                            Owner
+                        </label>
+
+                        <select
+                            id="owner"
+                            name="owner"
+                            class="form-control select2-user"
+                            style="width:100%;"
+                        >
+                            <option value="">All owners</option>
+
+                            {% for person in users %}
+                            <option
+                                value="{{ person.id }}"
+                                {% if owner == person.id|stringformat:"s" %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ person }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Action -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="action" class="form-label">
+                            Action
+                        </label>
+
+                        <select
+                            id="action"
+                            name="action"
+                            class="form-control"
+                        >
+                            <option value="">All actions</option>
+
+                            {% for value, label in action_choices %}
+                                <option
+                                    value="{{ value }}"
+                                    {% if action == value %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Activity -->
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label for="activity" class="form-label">
+                            Activity
+                        </label>
+
+                        <input
+                            type="text"
+                            id="activity"
+                            name="activity"
+                            class="form-control"
+                            placeholder="Search activity..."
+                            value="{{ activity_search }}"
+                        >
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="card-footer d-flex justify-content-between">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    Filter
+                </button>
+
+                <a href="{% url 'auditlogs' %}" class="btn btn-sm btn-secondary">
+                    Reset
+                </a>
+            </div>
+
+        </div>
+
+    </form>
+
+    {% if page_obj.paginator.count %}
+    <div class="text-muted mb-3">
+        Showing
+        {{ page_obj.start_index }}
+        –
+        {{ page_obj.end_index }}
+        of
+        {{ page_obj.paginator.count }}
+        logs
+    </div>
+    {% endif %}
+
+    {% include "includes/pagination.html" %}
+
+    <table class="table table-boxed table-hover">
+
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Performed by</th>
+                <th>Activity owner</th>
+                <th>Action</th>
+                <th>Activity</th>
+                <th>Changes</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for log in page_obj %}
+            <tr>
+                <td class="text-nowrap">
+                    {{ log.created_at|date:"d.m.Y H:i:s" }}
+                </td>
+
+                <td>
+                    {{ log.user }}
+                </td>
+
+                <td>
+                    {{ log.changes.user }}
+                </td>
+
+                <td>
+                    {% if log.action == "created" %}
+                        <span class="badge rounded-pill bg-success text-dark px-3 py-2">
+                            {{ log.get_action_display }}
+                        </span>
+                    {% elif log.action == "duplicated" %}
+                        <span class="badge rounded-pill bg-info text-white px-3 py-2">
+                            {{ log.get_action_display }}
+                        </span>
+                    {% elif log.action == "updated" %}
+                        <span class="badge rounded-pill bg-tertiary text-white px-3 py-2">
+                            {{ log.get_action_display }}
+                        </span>
+                    {% elif log.action == "submitted" %}
+                        <span class="badge rounded-pill bg-warning text-dark px-3 py-2">
+                            {{ log.get_action_display }}
+                        </span>
+                    {% elif log.action == "deleted" %}
+                        <span class="badge rounded-pill bg-danger text-white px-3 py-2">
+                            {{ log.get_action_display }}
+                        </span>
+                    {% endif %}
+                </td>
+
+                <td>
+                    {{ log.activity }}
+                </td>
+
+                <td style="min-width: 180px; max-width: 600px;">
+
+                {% if log.changes %}
+
+                    <button
+                        class="collapse-title collapse-title-desktop collapsed"
+                        type="button"
+                        data-toggle="collapse"
+                        data-target="#collapse-{{ log.id }}"
+                        aria-expanded="false"
+                        aria-controls="collapse-{{ log.id }}"
+                    >
+                        View changes
+                    </button>
+
+                    <div class="collapse collapse-item collapse-item-desktop" id="collapse-{{ log.id }}">
+                        <div class="card card-body" style="overflow-wrap: anywhere;">
+                        {% for field, change in log.changes.items %}
+                            {% if field != "user" %}
+                            <div class="mb-3">
+
+                                <div class="fw-bold mb-1">
+                                    {{ field|title }}
+                                </div>
+
+                                {% if change.old is not None or change.new is not None %}
+                                <div class="ms-2">
+                                    <span class="text-muted">
+                                        {{ change.old|default:"—" }}
+                                    </span>
+
+                                    <span class="mx-2">
+                                        →
+                                    </span>
+
+                                    <strong>
+                                        {{ change.new|default:"—" }}
+                                    </strong>
+                                </div>
+                                {% else %}
+                                <div class="ms-2">
+                                    {{ change|default:"—" }}
+                                </div>
+                                {% endif %}
+
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        </div>
+                    </div>
+
+                {% else %}
+
+                    <span class="text-muted">—</span>
+
+                {% endif %}
+
+            </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+
+    {% include "includes/pagination.html" %}
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+document.getElementById("filter-form").addEventListener("submit", function () {
+    this.querySelectorAll("input, select").forEach(function (field) {
+        if (!field.value) {
+            field.disabled = true;
+        }
+    });
+});
+
+$('.select2-user').select2({
+    placeholder: "-------",
+    allowClear: true,
+    width: '100%',
+
+    templateResult: function(item) {
+
+        if (!item.id) {
+            return item.text;
+        }
+
+        // Récupère le champ de recherche du Select2 actuellement ouvert
+        const searchField = $(this)
+            .closest('.select2-container')
+            .find('.select2-search__field');
+
+        const search = searchField.val();
+
+        if (!search) {
+            return item.text;
+        }
+
+        // Évite les problèmes si la recherche contient des caractères spéciaux
+        const escapedSearch = search.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&'
+        );
+
+        const regex = new RegExp(
+            '(' + escapedSearch + ')',
+            'ig'
+        );
+
+        return $('<span>' +
+            item.text.replace(regex, '<strong>$1</strong>') +
+            '</span>');
+    },
+
+    escapeMarkup: function(markup) {
+        return markup;
+    }
+});
+
+$('.select2-user.is-invalid').each(function () {
+    $(this)
+        .next('.select2-container')
+        .find('.select2-selection')
+        .addClass('is-invalid');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,7 @@
+django==5.2.16
+django-debug-toolbar==7.0.0
+django-epfl-entra-id==0.0.9
+psycopg[binary]==3.3.3
+weasyprint==69.0
+gunicorn==26.0.0
+django-tinymce==5.0.0

@@ -1,0 +1,51 @@
+services:
+  django:
+    image: declprofs-django:prod
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+      target: production
+    container_name: declprofs-prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - static_prod:/app/src/staticfiles
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      PYTHONUNBUFFERED: 1
+    env_file:
+      - /keybase/team/epfl_declprofs/secrets.env.dev-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: declprofs-postgres-prod
+    restart: unless-stopped
+    env_file:
+      - /keybase/team/epfl_declprofs/secrets.env.dev-prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DJANGO_POSTGRES_USER} -d $${DJANGO_POSTGRES_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginxinc/nginx-unprivileged:1.28.0-alpine
+    container_name: declprofs-nginx-prod
+    depends_on:
+      - django
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - static_prod:/public/static:ro
+    ports:
+      - "80:8080"
+
+volumes:
+  postgres_data_prod:
+  static_prod:

@@ -1,0 +1,23 @@
+- name: Secret Bot Telegram
+  ansible.builtin.include_tasks:
+    file: secrets.yml
+    apply:
+      tags:
+        - monitoring
+        - monitoring.secrets
+  tags:
+    - monitoring
+    - monitoring.secrets
+  when: env == "prod"
+
+- name: AlertManager
+  ansible.builtin.include_tasks:
+    file: alertmanager.yml
+    apply:
+      tags:
+        - monitoring
+        - monitoring.alert
+  tags:
+    - monitoring
+    - monitoring.alert
+  when: env == "prod"

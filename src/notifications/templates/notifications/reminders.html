@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.select2-container .select2-selection--single {
+    height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.tr-inactive {
+    background-color: #f2f2f2;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-wrap: wrap;">
+
+    <div class="col-md-12">
+
+        <h3>Reminders</h3>
+
+        <h4>
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} django-message">
+                {{ message }}
+            </div>
+            {% endfor %}
+            {% endif %}
+        </h4>
+
+        <!-- Filters -->
+        <form method="get" id="filter-form" class="mb-4">
+
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="d-flex align-items-start gap-3 flex-wrap">
+
+                        {% if user.is_superuser %}
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#user"></use>
+                                    </svg>
+                                </span>
+
+                                <select id="professor"
+                                        name="professor"
+                                        class="form-control select2-user"
+                                        style="width:350px;">
+                                    <option value=""></option>
+
+                                    {% for people in professors %}
+                                    <option value="{{ people.sciper }}"
+                                            {% if request.GET.professor == people.sciper %}
+                                                selected
+                                            {% endif %}>
+                                        {{ people }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="button"
+                                id="select-not-submitted"
+                                class="btn btn-outline-primary">
+                            Select users who have not submitted their activities
+                        </button>
+                    </div>
+
+                </div>
+            </div>    
+        </form>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <table class="table table-boxed table-hover">
+
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th class="text-center">
+                            <input type="checkbox" id="select-all">
+                        </th>
+                        <th class="text-center">Last sent reminder</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                {% for user_year in user_years %}
+
+                    <tr {% if not user_year.is_employed or user_year.is_exempted %}
+                            class="tr-inactive"
+                        {% endif %}>
+
+                        <td>
+                            {{ user_year.user.last_name }}
+                            {{ user_year.user.first_name }}
+                        </td>
+
+                        <td>
+                            {{ user_year.user.email }}
+                        </td>
+
+                        <td class="text-center">
+                            {% if user_year.is_employed and not user_year.is_exempted %}
+                            <input type="checkbox"
+                                class="reminder-checkbox"
+                                name="send_reminder"
+                                value="{{ user_year.id }}"
+                                data-incomplete="{% if not user_year.is_complete %}true{% else %}false{% endif %}">
+                            {% endif %}
+                        </td>
+
+                        <td class="text-center">
+                            {% if user_year.reminder_at %}
+                            {{ user_year.reminder_at|date:"Y-m-d H:i" }}
+                            {% else %}
+                              -
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                {% empty %}
+
+                    <tr>
+                        <td colspan="7">
+                            No professors
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            <button type="submit" class="btn btn-primary mt-4">
+                Send reminder(s)
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('.select2-user').select2({
+
+        placeholder: "-------",
+        allowClear: true,
+        minWidth: "350px",
+
+        templateResult: function(item) {
+
+            if (!item.id) {
+                return item.text;
+            }
+
+            let search = $('.select2-search__field').val();
+
+            if (!search) {
+                return item.text;
+            }
+
+            let regex = new RegExp(
+                '(' + search + ')',
+                'ig'
+            );
+
+            return $('<span>' +
+                item.text.replace(regex, '<strong>$1</strong>') +
+                '</span>');
+        },
+
+        escapeMarkup: function(markup) {
+            return markup;
+        }
+    });
+
+    if ($('#professor').length) {
+        $('#professor').on('change', function () {
+            $('#filter-form').submit();
+        });
+    }
+
+    const selectAll = document.getElementById("select-all");
+    const checkboxes = document.querySelectorAll(".reminder-checkbox");
+    const selectNotSubmitted = document.getElementById("select-not-submitted");
+
+    // Update the "Select all" checkbox
+    function updateSelectAll() {
+        const checkedCount = document.querySelectorAll(
+            ".reminder-checkbox:checked"
+        ).length;
+
+        selectAll.checked =
+            checkboxes.length > 0 &&
+            checkedCount === checkboxes.length;
+
+        selectAll.indeterminate =
+            checkedCount > 0 &&
+            checkedCount < checkboxes.length;
+    }
+
+    // Select or deselect all users
+    selectAll.addEventListener("change", function () {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = selectAll.checked;
+        });
+
+        updateSelectAll();
+    });
+
+    // Update the "Select all" checkbox when an individual checkbox changes
+    checkboxes.forEach(function (checkbox) {
+        checkbox.addEventListener("change", updateSelectAll);
+    });
+
+    // Select users who have not completed their activities
+    selectNotSubmitted.addEventListener("click", function () {
+        checkboxes.forEach(function (checkbox) {
+            checkbox.checked = checkbox.dataset.incomplete === "true";
+        });
+
+        updateSelectAll();
+    });
+});
+</script>
+{% endblock %}

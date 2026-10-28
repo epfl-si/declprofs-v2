@@ -1,0 +1,56 @@
+resources:
+  grist:
+    storage: 5Gi
+    replicas: 1
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+
+  n8n:
+    replicas: 1
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 100m
+      memory: 512Mi
+
+  redis:
+    storage: 2Gi
+    requests:
+      cpu: 10m
+      memory: 100Mi
+    limits:
+      memory: 100Mi
+
+  database:
+    storage: 10Gi
+    replicas: 3
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 256Mi
+  
+  django:
+    storage: 1Gi
+    replicas: 2
+    requests:
+      cpu: 10m
+      memory: 1Gi
+    limits:
+      memory: 1Gi
+  
+  nginx:
+    storage: 1Gi
+    replicas: 2
+    requests:
+      cpu: 10m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+
+grist_file: uSQv6iCFFQ8QjLRNJQuJ8c.grist
+grist_fake_file: 7ds2tRWSxstfK3gLp4pxnG.grist

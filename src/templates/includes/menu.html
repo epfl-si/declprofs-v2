@@ -1,0 +1,26 @@
+<li {% if request.resolver_match.url_name == "home" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'home' %}">Activities</a>
+</li>
+{% if user.is_superuser %}
+<li {% if request.resolver_match.url_name == "users" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'users' %}">Users</a>
+</li>
+<li {% if request.resolver_match.url_name == "campaign" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'campaign' %}">Campaigns</a>
+</li>
+<li {% if request.resolver_match.url_name == "reminders" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'reminders' %}">Reminders</a>
+</li>
+<li {% if request.resolver_match.url_name == "notifications" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'notifications' %}">Emails</a>
+</li>
+<li {% if request.resolver_match.url_name == "auditlogs" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'auditlogs' %}">AuditLogs</a>
+</li>
+<li {% if request.resolver_match.url_name == "emaillogs" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'emaillogs' %}">EmailLogs</a>
+</li>
+{% endif %}
+<li {% if request.resolver_match.url_name == "documentation" %}class="current-menu-item"{% endif %}>
+    <a class="nav-item" href="{% url 'documentation' %}">Help</a>
+</li>

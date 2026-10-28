@@ -1,0 +1,40 @@
+services:
+  django:
+    image: declprofs-django:dev
+    build:
+      context: .
+      dockerfile: docker/django/Dockerfile
+      target: development
+    container_name: declprofs-dev
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      PYTHONUNBUFFERED: 1
+    env_file:
+      - /keybase/team/epfl_declprofs/secrets.env.dev-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18-alpine
+    container_name: declprofs-postgres-dev
+    restart: unless-stopped
+    env_file:
+      - /keybase/team/epfl_declprofs/secrets.env.dev-dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_test:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${DJANGO_POSTGRES_USER} -d $${DJANGO_POSTGRES_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data_test:

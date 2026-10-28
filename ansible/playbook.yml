@@ -1,0 +1,42 @@
+---
+- name: Deploy PostgreSQL
+  hosts: all
+  roles:
+    - postgres
+  tags: [postgres]
+
+- name: Deploy Redis
+  hosts: all
+  roles:
+    - redis
+  tags: [redis]
+
+- name: Deploy Grist
+  hosts: all
+  roles:
+    - grist
+  tags: [grist]
+ 
+- name: Deploy n8n
+  hosts: all
+  roles:
+    - n8n
+  tags: [n8n]
+
+- name: Deploy Django
+  hosts: all
+  roles:
+    - django
+  tags: [django]
+ 
+- name: Deploy nginx
+  hosts: all
+  roles:
+    - nginx
+  tags: [nginx]
+ 
+- name: Deploy monitoring
+  hosts: all
+  roles:
+    - monitoring
+  tags: [monitoring]

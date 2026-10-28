@@ -1,0 +1,80 @@
+---
+- name: Creating backup secrets
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: bonds-secret
+        namespace: "{{ inventory_hostname }}"
+      type: Opaque
+      stringData:
+        RESTIC_REPOSITORY: "s3:https://{{ secrets.s3.host}}/{{ secrets.s3.name }}/{{ app.name }}-grist"
+        RESTIC_PASSWORD: "{{ secrets.restic.password }}"
+        AWS_ACCESS_KEY_ID: "{{ secrets.s3.access_key_id }}"
+        AWS_SECRET_ACCESS_KEY: "{{ secrets.s3.access_key_secret }}"
+
+- name: Create cronjob for backup
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: "{{ app.name}}-grist-backup"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        schedule: "0 2 * * *"
+        concurrencyPolicy: Forbid
+        failedJobsHistoryLimit: 3
+        successfulJobsHistoryLimit: 1
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                restartPolicy: OnFailure
+                containers:
+                  - name: "{{ app.name}}-grist-backup"
+                    image: "{{ registry }}/bonds:latest"
+                    resources:
+                      requests:
+                        cpu: "50m"
+                        memory: "128Mi"
+                      limits:
+                        memory: "128Mi"
+                    env:
+                      - name: BACKUP_PATH
+                        value: /data
+                      - name: BACKUP_TAG
+                        value: my-pvc
+                      - name: RETENTION_KEEP_LAST
+                        value: "7"
+                      - name: RESTIC_REPOSITORY
+                        valueFrom:
+                          secretKeyRef:
+                            name: bonds-secret
+                            key: RESTIC_REPOSITORY
+                      - name: RESTIC_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: bonds-secret
+                            key: RESTIC_PASSWORD
+                      - name: AWS_ACCESS_KEY_ID
+                        valueFrom:
+                          secretKeyRef:
+                            name: bonds-secret
+                            key: AWS_ACCESS_KEY_ID
+                      - name: AWS_SECRET_ACCESS_KEY
+                        valueFrom:
+                          secretKeyRef:
+                            name: bonds-secret
+                            key: AWS_SECRET_ACCESS_KEY
+                    volumeMounts:
+                      - name: data
+                        mountPath: /data
+                        readOnly: true
+                volumes:
+                  - name: data
+                    persistentVolumeClaim:
+                      claimName: "{{ app.name }}-grist-storage"
+                imagePullSecrets:
+                  - name: "{{ pull_secret }}"

@@ -1,0 +1,51 @@
+_secrets_file: "{{ lookup('pipe', 'keybase fs read /keybase/team/epfl_declprofs/secrets.yml') | from_yaml }}"
+secrets: "{{ _secrets_file[env] }}"
+
+app:
+  name: declprofs
+  url: "https://declprofs-next{{ '-test' if env == 'test' else '' }}.epfl.ch"
+  domain: "declprofs-next{{ '-test' if env == 'test' else '' }}.epfl.ch"
+
+django:
+  name: declprofs-django
+  url: "https://declprofs-django{{ '-test' if env == 'test' else '' }}.epfl.ch"
+  domain: "declprofs-django{{ '-test' if env == 'test' else '' }}.epfl.ch"
+
+n8n:
+  name: declprofs-n8n
+  url: "https://declprofs-n8n{{ '-test' if env == 'test' else '' }}.epfl.ch"
+  domain: "declprofs-n8n{{ '-test' if env == 'test' else '' }}.epfl.ch"
+
+registry: quay-its.epfl.ch/svc0723
+pull_secret: svc0723-pull-secret
+
+registry_wp_s3: quay-its.epfl.ch/svc0041
+pull_secret_wp_s3: svc0041-w3-s3-pull-secret
+
+images:
+  grist:
+    version: "1.7.10"
+  n8n:
+    version: "2.11.2"
+  redis:
+    version: "8.4.0"
+  django_app:
+    version: "0.1"
+
+database:
+  cluster: "{{ app.name }}-postgres"
+  grist:
+    name: "grist-db"
+    user: "grist-user"
+  n8n:
+    name: "n8n-db"
+    user: "n8n-user"
+  host: "{{ app.name }}-postgres-rw"
+
+storage_class:
+  name: ocs-storagecluster-cephfs
+
+grist:
+  api:
+    url: "https://grist.example.com/api/docs/XXX"
+    key: "SECRET"

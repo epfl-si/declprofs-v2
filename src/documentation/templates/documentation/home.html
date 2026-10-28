@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block css %}
+<style>
+    .documentation-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .documentation-section {
+        margin-bottom: 40px;
+    }
+
+    .documentation-section-title {
+        margin-bottom: 20px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .documentation-item {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .documentation-item:hover {
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .documentation-item[open] {
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.10);
+    }
+
+    .documentation-item summary {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 18px 50px 18px 20px;
+        cursor: pointer;
+        font-size: 17px;
+        font-weight: 600;
+        color: #2c3e50;
+        list-style: none;
+        user-select: none;
+    }
+
+    .documentation-item summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .documentation-item summary::before {
+        content: "📄";
+        margin-right: 12px;
+        font-size: 18px;
+    }
+
+    .documentation-item summary::after {
+        content: "›";
+        position: absolute;
+        right: 20px;
+        font-size: 24px;
+        color: #7f8c8d;
+        transition: transform 0.2s ease;
+    }
+
+    .documentation-item[open] summary::after {
+        transform: rotate(90deg);
+    }
+
+    .documentation-item[open] summary {
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fafc;
+    }
+
+    .documentation-content {
+        padding: 25px;
+        line-height: 1.7;
+        color: #444;
+        background: #fff;
+    }
+
+    .documentation-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 6px;
+    }
+
+    .documentation-empty {
+        color: #7f8c8d;
+        font-style: italic;
+    }
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="documentation-container">
+
+    <h3>Documentation</h3>
+
+    <!-- User documentation -->
+    <div class="documentation-section">
+
+        <h4 class="documentation-section-title">
+            User documentation
+        </h4>
+
+        {% for doc in documentation_user %}
+
+            <details class="documentation-item">
+
+                <summary>
+                    {{ doc.title }}
+                </summary>
+
+                <div class="documentation-content">
+                    {{ doc.content|safe }}
+                </div>
+
+            </details>
+
+        {% empty %}
+
+            <p class="documentation-empty">
+                No documentation available.
+            </p>
+
+        {% endfor %}
+
+    </div>
+
+
+    <!-- Business documentation -->
+    {% if request.user.is_superuser %}
+
+        <div class="documentation-section">
+
+            <h4 class="documentation-section-title">
+                Business documentation
+            </h4>
+
+            {% for doc in documentation_business %}
+
+                <details class="documentation-item">
+
+                    <summary>
+                        {{ doc.title }}
+                    </summary>
+
+                    <div class="documentation-content">
+                        {{ doc.content|safe }}
+                    </div>
+
+                </details>
+
+            {% empty %}
+
+                <p class="documentation-empty">
+                    No documentation available.
+                </p>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+
+{% block script %}
+{% endblock %}

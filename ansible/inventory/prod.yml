@@ -1,0 +1,9 @@
+all:
+  children:
+    prod:
+      hosts:
+        svc0723p-declprofs:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+          env: prod
+          avi_route_access_level: private

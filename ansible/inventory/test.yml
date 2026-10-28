@@ -1,0 +1,9 @@
+all:
+  children:
+    test:
+      hosts:
+        svc0723t-declprofs:
+          ansible_connection: local
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"
+          env: test
+          avi_route_access_level: private

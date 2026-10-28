@@ -1,0 +1,821 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.activity-selected {
+    background-color: #e7f1ff !important;
+    font-weight: 500;
+}
+
+.activity-form-container {
+    position: sticky;
+    top: 20px;
+}
+
+.select2-container .select2-selection--single {
+    height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.select2-container .select2-selection.is-invalid {
+    border-color: #dc3545 !important;
+}
+
+.table-boxed .col-compact {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.table-activities {
+    width: 100%;
+    table-layout: auto;
+}
+
+.table-activities td.truncate-cell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 1px;
+}
+
+.table-activities .col-compact {
+    white-space: nowrap;
+    width: 1%;
+}
+
+.btn.btn-sm.btn-action {
+    border-radius: 5px;
+    line-height: 1;
+}
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-wrap: wrap;">
+
+    <div class="col-12 col-xl-9">    
+
+        <h3>
+            My activities
+
+            {% if page_obj.paginator.count %}
+            <small class="text-muted">
+                ({{ page_obj.paginator.count }})
+            </small>
+            {% endif %}
+        </h3>
+
+        <!-- Activity actions -->
+        <div class="mb-3 d-flex justify-content-between">
+
+            <a href="{% url 'home' %}{% if year or search_user %}?{% endif %}{% if search_user %}professor={{ search_user }}{% endif %}{% if year and search_user %}&{% endif %}{% if year %}year={{ year }}{% endif %}"
+                class="btn btn-sm btn-primary">
+                <svg class="icon feather" aria-hidden="true">
+                    <use xlink:href="#plus"></use>
+                </svg>
+                &nbsp;New activity
+            </a>
+
+            {% if user.is_superuser %}
+            <form method="get" action="{% url 'disclosure_report' %}">
+                <input
+                    type="hidden"
+                    name="professor"
+                    value="{{ request.GET.professor }}">
+
+                <input
+                    type="hidden"
+                    name="year"
+                    value="{{ request.GET.year }}">
+
+                <button type="submit" class="btn btn-sm btn-tertiary">
+                    <svg class="icon feather" aria-hidden="true">
+                        <use xlink:href="#download"></use>
+                    </svg>
+                    &nbsp;Download disclosure PDF
+                </button>
+            </form>
+            {% endif %}
+
+            {% if user.is_superuser %}
+            <form method="get" action="{% url 'report_csv' %}">
+                <input
+                    type="hidden"
+                    name="professor"
+                    value="{{ request.GET.professor }}">
+
+                <input
+                    type="hidden"
+                    name="year"
+                    value="{{ request.GET.year }}">
+
+                <button type="submit" class="btn btn-sm btn-tertiary">
+                    <svg class="icon feather" aria-hidden="true">
+                        <use xlink:href="#download"></use>
+                    </svg>
+                    &nbsp;Download CSV
+                </button>
+            </form>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="professor"
+                    value="{{ request.GET.professor }}">
+
+                <!-- Submit drafts -->
+                <button type="submit"
+                        name="action"
+                        value="submit_drafts"
+                        class="btn btn-sm btn-secondary">
+                    <svg class="icon feather" aria-hidden="true">
+                        <use xlink:href="#send"></use>
+                    </svg>
+                    &nbsp;Submit drafts
+                </button>
+
+            </form>
+        </div>
+
+        <!-- Filters -->
+        <form method="get" id="filter-form" class="mb-4">
+
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="row align-items-start g-3">
+
+                        {% if user.is_superuser %}
+                        <!-- Professor -->
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#user"></use>
+                                    </svg>
+                                </span>
+
+                                <select id="professor"
+                                        name="professor"
+                                        class="form-control select2-user"
+                                        style="width:350px;">
+                                    <option value=""></option>
+
+                                    {% for people in professors %}
+                                    <option value="{{ people.sciper }}"
+                                            {% if request.GET.professor == people.sciper %}
+                                                selected
+                                            {% endif %}>
+                                        {{ people }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Year -->
+                        <div class="col-auto">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#calendar"></use>
+                                    </svg>
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="year"
+                                    name="year"
+                                    class="form-control"
+                                    style="width:110px;"
+                                    min="2000"
+                                    max="2100"
+                                    value="{{ request.GET.year }}"
+                                    placeholder="Year">
+                            </div>
+
+                            <small class="text-muted">
+                                Leave blank for all years
+                            </small>
+                        </div>
+
+                        <!-- Reset -->
+                        <div class="col-auto d-flex align-items-end">
+                            <a href="{% url 'home' %}" class="btn btn-sm btn-secondary">
+                                Reset
+                            </a>
+                        </div>
+
+                    </div>
+
+                </div>
+            </div>
+
+        </form>
+
+        {% if not user.is_superuser %}
+        <div class="d-flex align-items-center mb-2">
+            <span class="fw-semibold">Statistics&nbsp:&nbsp</span>
+
+            {% if year %}
+            <span class="ms-2 text-muted small">
+                for {{ year }}
+            </span>
+            {% else %}
+            <span class="ms-2 text-muted small">
+                all years
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="row g-2 mb-4">
+            <div class="col">
+                <div class="border rounded p-2 text-center">
+                    <div class="small text-muted">Total</div>
+                    <div class="fs-5 fw-semibold">
+                        {{ stats_user_count.activity_count }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="border rounded p-2 text-center">
+                    <div class="small text-muted">Draft</div>
+                    <div class="fs-5 fw-semibold">
+                        {{ stats_user_count.draft_count }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="border rounded p-2 text-center">
+                    <div class="small text-muted">Submitted</div>
+                    <div class="fs-5 fw-semibold">
+                        {{ stats_user_count.submitted_count }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="border rounded p-2 text-center">
+                    <div class="small text-muted">Missing</div>
+                    <div class="fs-5 fw-semibold">
+                        {{ stats_user_count.missing_count }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Table Activities -->
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} django-message">
+            {{ message }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% include "includes/pagination.html" %}
+
+        <table class="table table-boxed table-activities">
+
+            <thead>
+                <tr>
+                    {% if user.is_superuser %}
+                    <th title="Professor responsible for this activity">User</th>
+                    {% endif %}
+                    <th title="Description of the activity">Activity</th>
+                    <th title="Company or address where the activity took place">Principal</th>
+                    <th title="Additional comments about the activity">Comments</th>
+                    {% if user.is_superuser %}
+                    <th title="Comments added by the APR">APR comments</th>
+                    {% endif %}
+                    <th class="col-compact">Status</th>
+                    <th class="col-compact" title="Date when the activity started">Start date</th>
+                    <th class="col-compact" title="Date when the activity ended. If empty, the activity is still ongoing">End date</th>
+                    <th class="col-compact">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+            {% for activity in activities %}
+                <tr
+                    id="activity-{{ activity.id }}"
+                    class="activity-row{% if selected_activity and selected_activity.id == activity.id %} activity-selected{% endif %}"
+                    data-id="{{ activity.id }}"
+                    data-user="{{ activity.user_id }}"
+                    data-status="{{ activity.status }}"
+                    data-activity="{{ activity.activity|escapejs }}"
+                    data-principal="{{ activity.principal|escapejs }}"
+                    data-comments="{{ activity.comments|escapejs }}"
+                    data-comments-apr="{{ activity.comments_apr|escapejs }}"
+                    data-date-start="{{ activity.date_start|date:'Y-m-d' }}"
+                    data-date-end="{% if activity.date_end %}{{ activity.date_end|date:'Y-m-d' }}{% endif %}"
+                    data-is-draft="{{ activity.is_draft|yesno:'true,false' }}"
+                    style="cursor: pointer"
+                >
+                    {% if user.is_superuser %}
+                    <td>{{ activity.user.last_name }} {{ activity.user.first_name }}</td>
+                    {% endif %}
+
+                    <td class="truncate-cell" title="{{ activity.activity }}">{{ activity.activity }}</td>
+                    <td class="truncate-cell" title="{{ activity.principal }}">{{ activity.principal }}</td>
+                    <td class="truncate-cell" title="{{ activity.comments }}">{{ activity.comments }}</td>
+
+                    {% if user.is_superuser %}
+                    <td class="truncate-cell" title="{{ activity.comments_apr }}">{{ activity.comments_apr }}</td>
+                    {% endif %}
+
+                    <td class="col-compact">
+                        {% if activity.is_draft %}
+                        <span class="badge rounded-pill border border-dark text-dark bg-white px-3 py-2 mr-2">
+                            Draft
+                        </span>
+                        {% else %}
+                        <span class="badge badge-pill badge-success p-2">
+                            Submitted
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <td class="col-compact">{{ activity.date_start|date:"d/m/Y" }}</td>
+                    <td class="col-compact">{% if activity.date_end %}{{ activity.date_end|date:"d/m/Y" }}{% endif %}</td>
+
+                    <td class="col-compact">
+                        <div class="d-flex">
+
+                            <!-- Duplicate button -->
+                            <form method="post" onclick="event.stopPropagation();">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="duplicate">
+                                <input type="hidden" name="activity_id" value="{{ activity.id }}">
+
+                                <button type="submit" class="btn btn-sm btn-action btn-outline-tertiary p-1 mr-2" title="Duplicate the activity">
+                                    <span>
+                                        <svg width="16" height="16">
+                                            <use xlink:href="#copy"></use>
+                                        </svg>
+                                    </span>
+                                </button>
+                            </form>
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-action btn-outline-danger p-1"
+                                title="Delete the activity"
+                                data-toggle="modal"
+                                data-target="#deleteActivityModal"
+                                data-activity-id="{{ activity.id }}"
+                            >
+                                <span>
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#trash"></use>
+                                    </svg>
+                                </span>
+                            </button>
+
+                        </div>
+                    </td>
+                </tr>
+
+            {% empty %}
+
+                <tr>
+                    <td colspan="{% if user.is_superuser %}7{% else %}5{% endif %}">
+                        No activities
+                    </td>
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+        <div class="d-flex justify-content-between align-items-center mt-3">
+
+            <div>
+                {% include "includes/pagination.html" %}
+            </div>
+
+            <div class="text-muted mb-2">
+                Showing
+                {{ page_obj.start_index }}
+                –
+                {{ page_obj.end_index }}
+                of
+                {{ page_obj.paginator.count }}
+                activities
+            </div>
+
+        </div>
+
+        <div
+            class="modal fade"
+            id="deleteActivityModal"
+            tabindex="-1"
+            role="dialog"
+            aria-labelledby="deleteActivityModalTitle"
+            aria-hidden="true"
+        >
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteActivityModalTitle">
+                            Delete activity
+                        </h5>
+
+                        <button
+                            type="button"
+                            class="close"
+                            data-dismiss="modal"
+                            aria-label="Close"
+                        >
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <div class="modal-body">
+                        Are you sure you want to delete this activity?
+
+                        <div class="mt-2">
+                            <strong id="deleteActivityDescription"></strong>
+                        </div>
+
+                        <div class="alert alert-warning mt-3 mb-0">
+                            This action cannot be undone.
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-dismiss="modal"
+                        >
+                            Cancel
+                        </button>
+
+                        <form method="post" id="deleteActivityForm">
+                            {% csrf_token %}
+
+                            <input type="hidden"
+                                name="action"
+                                value="delete">
+
+                            <input
+                                type="hidden"
+                                name="activity_id"
+                                id="deleteActivityId"
+                            >
+
+                            <button
+                                type="submit"
+                                class="btn btn-danger"
+                            >
+                                Delete
+                            </button>
+                        </form>
+
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Form -->
+    <div class="col-12 col-xl-3">
+
+        <div class="activity-form-container">
+
+            {% if form %}
+
+            <h3 id="activity-form-title">
+                {% if selected_activity %}Edit activity{% else %}New activity{% endif %}
+            </h3>
+
+            <div id="activity-status-message">
+                {% if selected_activity %}
+                {% if selected_activity.status == 'draft' %}
+                <div class="alert alert-warning" role="alert">
+                    This activity is a <strong>draft</strong>.
+                    It must be submitted to be validated.
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="alert alert-warning" role="alert">
+                    This activity will be a <strong>draft</strong>.
+                    It must be submitted to be validated.
+                </div>
+                {% endif %}
+            </div>
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <input type="hidden" name="page" value="{{ request.GET.page }}">
+
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {% for error in form.non_field_errors %}
+                    {{ error }}
+                    {% endfor %}
+                    <button type="button"
+                            class="close"
+                            data-dismiss="alert"
+                            aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                {% endif %}
+
+                {% if selected_activity %}
+                <input type="hidden" name="action" value="save" id="form-action">
+                <input
+                    type="hidden"
+                    name="activity_id"
+                    value="{{ selected_activity.id }}"
+                    id="form-activity-id"
+                >
+                {% else %}
+                <input type="hidden" name="action" value="create" id="form-action">
+                <input
+                    type="hidden"
+                    name="activity_id"
+                    value=""
+                    id="form-activity-id"
+                >
+                {% endif %}
+
+                <div class="form-group mb-3">
+                    {% if user.is_superuser %}
+                    <label for="{{ form.user.id_for_label }}">
+                        User
+                    </label>
+                    {% endif %}
+                    {{ form.user }}
+                    {% for error in form.user.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="{{ form.activity.id_for_label }}">
+                        Activity
+                    </label>
+                    {{ form.activity }}
+                    {% for error in form.activity.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="{{ form.principal.id_for_label }}">
+                        Principal
+                    </label>
+                    {{ form.principal }}
+                    {% for error in form.principal.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ error }}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="{{ form.comments.id_for_label }}">
+                        Comments
+                    </label>
+                    {{ form.comments }}
+                </div>
+
+                {% if user.is_superuser %}
+                <div class="form-group mb-3">
+                    <label for="{{ form.comments_apr.id_for_label }}">
+                        APR comments
+                    </label>
+                    {{ form.comments_apr }}
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="{{ form.date_start.id_for_label }}">
+                                Start date
+                            </label>
+                            {{ form.date_start }}
+                            {% for error in form.date_start.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label for="{{ form.date_end.id_for_label }}">
+                                End date
+                            </label>
+                            {{ form.date_end }}
+                            {% for error in form.date_end.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ error }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    Save
+                </button>
+
+            </form>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('.select2-user').select2({
+
+        placeholder: "-------",
+        allowClear: true,
+        minWidth: "350px",
+
+        templateResult: function(item) {
+
+            if (!item.id) {
+                return item.text;
+            }
+
+            let search = $('.select2-search__field').val();
+
+            if (!search) {
+                return item.text;
+            }
+
+            let regex = new RegExp(
+                '(' + search + ')',
+                'ig'
+            );
+
+            return $('<span>' +
+                item.text.replace(regex, '<strong>$1</strong>') +
+                '</span>');
+        },
+
+        escapeMarkup: function(markup) {
+            return markup;
+        }
+    });
+
+    $('.select2-user.is-invalid').each(function () {
+        $(this)
+            .next('.select2-container')
+            .find('.select2-selection')
+            .addClass('is-invalid');
+    });
+
+    setTimeout(function() {
+        document.querySelectorAll('.django-message').forEach(function(message) {
+            message.style.display = 'none';
+        });
+    },10000);
+
+    if ($('#professor').length) {
+        $('#professor').on('change', function () {
+            $('#filter-form').submit();
+        });
+    }
+
+    $('#year').on('change', function () {
+        $('#filter-form').submit();
+    });
+
+    $('.activity-form-container form').on('submit', function () {
+        const activityId = $('#form-activity-id').val();
+
+        if (activityId) {
+            sessionStorage.setItem('saved-activity-id', activityId);
+        }
+    });
+
+    const savedActivityId = sessionStorage.getItem('saved-activity-id');
+
+    if (savedActivityId) {
+        sessionStorage.removeItem('saved-activity-id');
+
+        const row = document.getElementById(
+            'activity-' + savedActivityId
+        );
+
+        if (row) {
+            setTimeout(function () {
+                row.scrollIntoView({
+                    behavior: 'instant',
+                    block: 'center'
+                });
+            }, 100);
+        }
+    }
+
+    $('.activity-row').on('click', function () {
+        const row = $(this);
+
+        $('.activity-row').removeClass('activity-selected');
+        row.addClass('activity-selected');
+
+        const activityId = row.data('id');
+        const userId = row.attr('data-user');
+        const activity = row.attr('data-activity');
+        const principal = row.attr('data-principal');
+        const comments = row.attr('data-comments');
+        const commentsApr = row.attr('data-comments-apr');
+        const dateStart = row.attr('data-date-start');
+        const dateEnd = row.attr('data-date-end');
+        const status = row.data('status');
+
+        $('#id_user').val(userId).trigger('change');
+        $('#id_activity').val(activity);
+        $('#id_principal').val(principal);
+        $('#id_comments').val(comments);
+        $('#id_comments_apr').val(commentsApr);
+        $('#id_date_start').val(dateStart);
+        $('#id_date_end').val(dateEnd);
+
+        $('#form-action').val('save');
+        $('#form-activity-id').val(activityId);
+
+        $('#activity-form-title').text('Edit activity');
+
+        if (status === 'draft') {
+            $('#activity-status-message').html(`
+                <div class="alert alert-warning" role="alert">
+                    This activity is a <strong>draft</strong>.
+                    It must be submitted to be validated.
+                </div>
+            `);
+        } else {
+            $('#activity-status-message').empty();
+        }
+    });
+
+    $('#deleteActivityModal').on('show.bs.modal', function (event) {
+
+        const button = $(event.relatedTarget);
+
+        const activityId = button.data('activity-id');
+
+        const row = $('#activity-' + activityId);
+
+        const activityDescription = row.attr('data-activity');
+
+        // ID utilisé par le formulaire POST
+        $('#deleteActivityId').val(activityId);
+
+        // Afficher la description
+        $('#deleteActivityDescription').text(activityDescription);
+    });
+});
+</script>
+{% endblock %}

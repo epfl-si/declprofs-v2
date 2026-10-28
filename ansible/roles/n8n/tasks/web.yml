@@ -1,0 +1,109 @@
+- name: Create service
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "{{ n8n.name }}"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        selector:
+          app: "{{ n8n.name }}"
+        ports:
+          - name: "{{ n8n.name }}-svc-port"
+            protocol: TCP
+            port: 80
+            targetPort: http
+
+- name: Create Route
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: "{{ n8n.name }}"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app: "{{ n8n.name }}"
+          route: private
+      spec:
+        host: "{{ n8n.domain }}"
+        to:
+          kind: Service
+          name: "{{ n8n.name }}"
+        port:
+          targetPort: "{{ n8n.name }}-svc-port"
+        tls:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+
+- name: Create Deployment
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ n8n.name }}"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app.kubernetes.io/name: "{{ n8n.name }}"
+          app.kubernetes.io/component: n8n
+      spec:
+        replicas: "{{ resources.n8n.replicas }}"
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 1
+        selector:
+          matchLabels:
+            app: "{{ n8n.name }}"
+        template:
+          metadata:
+            labels:
+              app: "{{ n8n.name }}"
+          spec:
+            # securityContext:
+            #   runAsNonRoot: true
+            #   fsGroup: 1000
+            containers:
+              - image: "{{ registry }}/n8n:{{ images.n8n.version }}"
+                imagePullPolicy: Always
+                name: "{{ n8n.name }}"
+                ports:
+                  - containerPort: 5678
+                    name: http
+                envFrom:
+                  - secretRef:
+                      name: "{{ n8n.name }}-secrets"
+                resources:
+                  requests:
+                    cpu: "{{ resources.n8n.requests.cpu }}"
+                    memory: "{{ resources.n8n.requests.memory }}"
+                  limits:
+                    memory: "{{ resources.n8n.limits.memory }}"
+                # securityContext:
+                #   allowPrivilegeEscalation: false
+                #   readOnlyRootFilesystem: true
+                startupProbe:
+                  tcpSocket:
+                    port: 5678
+                  periodSeconds: 3
+                  failureThreshold: 30
+                readinessProbe:
+                  tcpSocket:
+                    port: 5678
+                  initialDelaySeconds: 5
+                  timeoutSeconds: 3
+                livenessProbe:
+                  tcpSocket:
+                    port: 5678
+                  initialDelaySeconds: 5
+                  timeoutSeconds: 3
+                volumeMounts:
+                  - name: data
+                    mountPath: /home/node
+            volumes:
+              - name: data
+                emptyDir: {}
+            imagePullSecrets:
+              - name: "{{ pull_secret }}"

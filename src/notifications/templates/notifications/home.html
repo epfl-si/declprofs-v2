@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block css %}
+<style>
+.helptext {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.tox-tinymce {
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <h3 class="mb-4">Email templates</h3>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {{ formset.media }}
+        {{ formset.management_form }}
+
+        <input type="hidden" name="active_tab" id="active-tab" value="">
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+
+            {% for form in formset %}
+            <li class="nav-item" role="presentation">
+                <a
+                    class="nav-link {% if forloop.first %}active{% endif %}"
+                    id="tab-{{ form.instance.pk }}"
+                    data-toggle="tab"
+                    data-target="#template-{{ form.instance.pk }}"
+                    role="tab"
+                    aria-controls="template-{{ form.instance.pk }}"
+                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"
+                >
+                    {{ form.instance.get_name_display }}
+                </a>
+            </li>
+            {% endfor %}
+
+        </ul>
+
+        <!-- Tab contents -->
+        <div class="tab-content p-3">
+            {% for form in formset %}
+            <div
+                class="tab-pane fade {% if forloop.first %}show active{% endif %}"
+                id="template-{{ form.instance.pk }}"
+                role="tabpanel"
+                aria-labelledby="tab-{{ form.instance.pk }}"
+            >
+                {{ form.as_p }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Save -->
+        <div class="d-flex justify-content-end mt-3">
+            <button type="submit" class="btn btn-primary">
+                Save
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+$(document).ready(function () {
+    const storageKey = "notification-active-tab";
+
+    $('a[data-toggle="tab"]').on('click', function (e) {
+        e.preventDefault();
+        const target = $(this).data('target');
+        $(this).tab('show');
+        sessionStorage.setItem(storageKey, target);
+    });
+
+    const activeTab = sessionStorage.getItem(storageKey);
+
+    if (activeTab) {
+        $('.nav-tabs .nav-link').removeClass('active');
+        $('.tab-content .tab-pane').removeClass('show active');
+        $('.nav-tabs .nav-link[data-target="' + activeTab + '"]').addClass('active');
+        $(activeTab).addClass('show active');
+    }
+
+    $('form').on('submit', function () {
+        const currentTab = $('.nav-tabs .nav-link.active').data('target');
+        sessionStorage.setItem(storageKey, currentTab);
+        sessionStorage.setItem('notification-save', '1');
+    });
+
+    if (sessionStorage.getItem('notification-save') === '1') {
+        sessionStorage.removeItem('notification-save');
+        window.scrollTo(0, 0);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+
+                if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                    cookieValue = decodeURIComponent(
+                        cookie.substring(name.length + 1)
+                    );
+                    break;
+                }
+            }
+        }
+
+        return cookieValue;
+    }
+
+    const csrftoken = getCookie("csrftoken");
+});
+</script>
+{% endblock %}

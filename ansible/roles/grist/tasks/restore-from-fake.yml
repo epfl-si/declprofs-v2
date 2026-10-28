@@ -1,0 +1,166 @@
+---
+- name: Create service account for grist restore from fake
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ app.name }}-grist-restore"
+        namespace: "{{ inventory_hostname }}"
+
+- name: Create role for grist pod restart
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: Role
+      metadata:
+        name: "{{ app.name }}-grist-restore"
+        namespace: "{{ inventory_hostname }}"
+      rules:
+        - apiGroups:
+            - ""
+          resources:
+            - pods
+          verbs:
+            - get
+            - list
+            - delete
+
+- name: Bind grist restore from fake role
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: RoleBinding
+      metadata:
+        name: "{{ app.name }}-grist-restore"
+        namespace: "{{ inventory_hostname }}"
+      subjects:
+        - kind: ServiceAccount
+          name: "{{ app.name }}-grist-restore"
+          namespace: "{{ inventory_hostname }}"
+      roleRef:
+        kind: Role
+        name: "{{ app.name }}-grist-restore"
+        apiGroup: rbac.authorization.k8s.io
+
+- name: Create ConfigMap containing restore from fake script
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: "{{ app.name }}-grist-restore-from-fake-script"
+        namespace: "{{ inventory_hostname }}"
+      data:
+        grist-restore-from-fake.py: |
+          #!/usr/bin/env python3
+
+          import sqlite3
+          import subprocess
+
+          REAL = "/persist/docs/{{ grist_file }}"
+          FAKE = "/persist/docs/{{ grist_fake_file }}"
+
+          conn = sqlite3.connect(REAL)
+          cursor = conn.cursor()
+
+          cursor.execute("ATTACH DATABASE ? AS fake", (FAKE,))
+
+          tables = cursor.execute("""
+              SELECT name
+              FROM sqlite_master
+              WHERE type='table'
+                AND name NOT LIKE '\\_%' ESCAPE '\\'
+          """).fetchall()
+
+          tables = [t[0] for t in tables]
+
+          print("Tables trouvées :")
+          for table in tables:
+              print(" -", table)
+
+          cursor.execute("BEGIN IMMEDIATE")
+
+          try:
+              for table in tables:
+                  print(f"Copie de {table}...")
+
+                  cursor.execute(f'DELETE FROM "{table}"')
+
+                  cursor.execute(f'''
+                      INSERT INTO "{table}"
+                      SELECT *
+                      FROM fake."{table}"
+                  ''')
+
+              conn.commit()
+              print("Copie terminée.")
+
+          except Exception:
+              conn.rollback()
+              raise
+
+          finally:
+              try:
+                  cursor.execute("DETACH DATABASE fake")
+              finally:
+                  conn.close()
+
+          # Restart pod
+          subprocess.run([
+              "kubectl",
+              "delete",
+              "pod",
+              "-l",
+              "app.kubernetes.io/name={{ app.name }},app.kubernetes.io/component=grist",
+              "-n",
+              "{{ inventory_hostname }}"
+          ], check=True)
+
+- name: Create cronjob for restore from fake
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: batch/v1
+      kind: CronJob
+      metadata:
+        name: "{{ app.name }}-grist-restore-from-fake"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        schedule: "0 3 * * *"
+        concurrencyPolicy: Forbid
+        failedJobsHistoryLimit: 3
+        successfulJobsHistoryLimit: 1
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                serviceAccountName: "{{ app.name }}-grist-restore"
+                restartPolicy: OnFailure
+                containers:
+                  - name: grist-restore-from-fake
+                    image: "{{ registry }}/restore-from-fake:latest"
+                    command:
+                      - python
+                      - /scripts/grist-restore-from-fake.py
+                    resources:
+                      requests:
+                        cpu: "50m"
+                        memory: "128Mi"
+                      limits:
+                        memory: "128Mi"
+                    volumeMounts:
+                      - name: data
+                        mountPath: /persist
+                      - name: script
+                        mountPath: /scripts
+                        readOnly: true
+                volumes:
+                  - name: data
+                    persistentVolumeClaim:
+                      claimName: "{{ app.name }}-grist-storage"
+                  - name: script
+                    configMap:
+                      name: "{{ app.name }}-grist-restore-from-fake-script"
+                imagePullSecrets:
+                  - name: "{{ pull_secret }}"
+            

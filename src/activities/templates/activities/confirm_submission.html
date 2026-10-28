@@ -1,0 +1,68 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>DeclProfs</title>
+    <link rel="icon" href="https://epfl-si.github.io/elements/svg/epfl-logo.svg">
+    <link rel="stylesheet" href="https://web2018.epfl.ch/8.6.0/css/elements.min.css">
+</head>
+
+<body>
+    <header role="banner" class="header header-light">
+        <a class="logo" href="https://www.epfl.ch">
+            <img src="{% static 'img/epfl-logo.svg' %}" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+        </a>
+        <p class="site-title">
+            <a href="#">Professor outside activities</a>
+        </p>
+    </header>
+
+    <hr class="darker">
+
+    <main class="content">
+
+        <div class="container">
+
+            <h3>Submit {{ drafts_count }} draft{{ drafts_count|pluralize }} of {{ year }}?</h3>
+
+            <p>
+                User: {{ current_user.get_full_name }}
+            </p>
+
+            <p>
+                With my submission, I certify that this list of activities is complete and accurate
+                and declare not to have devoted to them more than the equivalent of 1 day per week
+                for a full time position.
+            </p>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <input type="hidden" name="action" value="confirm_submit_drafts">
+
+                <button type="submit" class="btn btn-primary">
+                    Confirm submission
+                </button>
+
+                {% if user.is_superuser %}
+                <a href="{% url 'home' %}?professor={{ current_user.sciper }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                {% else %}
+                <a href="{% url 'home' %}" class="btn btn-secondary">
+                    Cancel
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </main>
+
+    <script src="https://web2018.epfl.ch/8.6.0/js/elements.min.js"></script>
+    <script>
+        svgPath = 'https://web2018.epfl.ch/8.3.0/icons/icons.svg';
+        featherSvgPath ='https://web2018.epfl.ch/8.3.0/icons/feather-sprite.svg';
+    </script>
+</body>
+</html>

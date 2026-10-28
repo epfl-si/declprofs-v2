@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.select2-container .select2-selection--single {
+    height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.tr-inactive {
+    background-color: #f2f2f2;
+    color: #6c757d;
+}
+
+.badge.status-filter-active {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.25),
+                0 4px 8px rgba(0, 0, 0, 0.25);
+    font-weight: 700;
+}
+
+.table-boxed .col-compact {
+    width: 1%;
+    white-space: nowrap;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-wrap: wrap;">
+
+    <div class="col-md-12">
+
+        <h3>Professors</h3>
+
+        <!-- Filters -->
+        <form method="get" id="filter-form" class="mb-4">
+
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="d-flex align-items-start gap-3 flex-wrap">
+
+                        {% if user.is_superuser %}
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#user"></use>
+                                    </svg>
+                                </span>
+
+                                <select id="professor"
+                                        name="professor"
+                                        class="form-control select2-user"
+                                        style="width:350px;">
+                                    <option value=""></option>
+
+                                    {% for people in professors %}
+                                    <option value="{{ people.sciper }}"
+                                            {% if request.GET.professor == people.sciper %}
+                                                selected
+                                            {% endif %}>
+                                        {{ people }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#calendar"></use>
+                                    </svg>
+                                </span>
+
+                                <select id="year" name="year" class="form-control">
+                                    {% for y in years %}
+                                    <option value="{{ y }}"
+                                        {% if selected_year == y|stringformat:"s" %}
+                                            selected
+                                        {% endif %}
+                                    >
+                                        {{ y }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <label>
+                                    <input id="cbexempted"
+                                        type="checkbox"
+                                        name="exempted"
+                                        value="true"
+                                        {% if request.GET.exempted %}
+                                            checked
+                                        {% endif %}>
+                                    Exempted
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'users' %}" class="btn btn-sm btn-secondary">
+                                Reset
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <div class="mb-3">
+            <a href="?year={{ selected_year }}"
+            class="badge rounded-pill border border-dark text-dark bg-white px-3 py-2 mr-2 {% if not selected_status %}status-filter-active{% endif %}">
+                Total : {{ stats.total }}
+            </a>
+
+            <a href="?year={{ selected_year }}&status=submitted"
+            class="badge rounded-pill bg-success text-dark px-3 py-2 mr-2 {% if selected_status == 'submitted' %}status-filter-active{% endif %}">
+                Submitted : {{ stats.submitted }}
+            </a>
+
+            <a href="?year={{ selected_year }}&status=incomplete"
+            class="badge rounded-pill bg-warning text-dark px-3 py-2 mr-2 {% if selected_status == 'incomplete' %}status-filter-active{% endif %}">
+                Incomplete : {{ stats.incomplete }}
+            </a>
+
+            <a href="?year={{ selected_year }}&status=missing"
+            class="badge rounded-pill bg-danger text-white px-3 py-2 {% if selected_status == 'missing' %}status-filter-active{% endif %}">
+                Missing : {{ stats.missings }}
+            </a>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <table class="table table-boxed table-hover">
+
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th class="col-compact text-center">Exempted</th>
+                        <th class="col-compact text-center">Eligible</th>
+                        <th class="col-compact text-center">Status</th>
+                        <th>APR comments</th>
+                        <th class="col-compact">Unit</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                {% for user_year in user_years %}
+
+                    <tr {% if not user_year.is_employed %}
+                            class="tr-inactive"
+                        {% endif %}>
+
+                        <input type="hidden"
+                            name="user_year_ids"
+                            value="{{ user_year.id }}">
+
+                        <td>
+                            {{ user_year.user.last_name }}
+                            {{ user_year.user.first_name }}
+                        </td>
+
+                        <td>
+                            {{ user_year.user.username }}
+                        </td>
+
+                        <td>
+                            {{ user_year.user.email }}
+                        </td>
+
+                        <td class="col-compact text-center">
+                            <input type="checkbox"
+                                name="exempted_{{ user_year.id }}"
+                                {% if user_year.is_exempted %}
+                                    checked
+                                {% endif %}>
+                        </td>
+
+                        <td class="col-compact text-center">
+                            <input type="checkbox"
+                                name="eligible_{{ user_year.id }}"
+                                {% if user_year.is_eligible %}
+                                    checked
+                                {% endif %}>
+                        </td>
+
+                        <td class="col-compact text-center">
+                            {% if user_year.is_complete %}
+                            <span class="status-icon border border-success rounded px-2 py-1 text-success">
+                                <svg width="16" height="16">
+                                    <use xlink:href="#check"></use>
+                                </svg>
+                            </span>
+                            {% else %}
+                            <span class="status-icon border border-danger rounded px-2 py-1 text-danger">
+                                <svg width="16" height="16">
+                                    <use xlink:href="#x"></use>
+                                </svg>
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <td>
+                        {% for comment in user_year.apr_comments %}
+                            <div class="mb-2">
+                                {{ comment }}
+                            </div>
+                        {% empty %}
+                            <span class="text-muted">—</span>
+                        {% endfor %}
+                        </td>
+
+                        <td class="col-compact">
+                            {{ user_year.user.unit }}
+                        </td>
+                    </tr>
+
+                {% empty %}
+
+                    <tr>
+                        <td colspan="8">
+                            No professors
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+            <button type="submit" class="btn btn-primary mt-4">
+                Save changes
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('.select2-user').select2({
+
+        placeholder: "-------",
+        allowClear: true,
+        minWidth: "350px",
+
+        templateResult: function(item) {
+
+            if (!item.id) {
+                return item.text;
+            }
+
+            let search = $('.select2-search__field').val();
+
+            if (!search) {
+                return item.text;
+            }
+
+            let regex = new RegExp(
+                '(' + search + ')',
+                'ig'
+            );
+
+            return $('<span>' +
+                item.text.replace(regex, '<strong>$1</strong>') +
+                '</span>');
+        },
+
+        escapeMarkup: function(markup) {
+            return markup;
+        }
+    });
+
+    if ($('#professor').length) {
+        $('#professor').on('change', function () {
+            $('#filter-form').submit();
+        });
+    }
+
+    $('#year').on('change', function () {
+        $('#filter-form').submit();
+    });
+
+    $('#cbexempted').on('change', function () {
+        $('#filter-form').submit();
+    });
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,288 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Disclosure Form - EPFL</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 15px;
+      color: #000;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    @page {
+      size: A4 landscape;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-top: 0;
+      font-weight: normal;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .meta {
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+
+    .line {
+      border-bottom: 1px solid #000;
+      height: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #000;
+      padding: 8px;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f2f2f2;
+      text-align: left;
+    }
+
+    .footer {
+      margin-top: 30px;
+      font-size: 13px;
+    }
+
+    .signature-line {
+      display: inline-block;
+      border-bottom: 1px solid #000;
+      width: 250px;
+      height: 18px;
+    }
+
+    .header-banner {
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 30px;
+    }
+    
+    .header-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-right: 20px;
+    }
+    
+    .confidential {
+      text-align: left;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    
+    .confidential-line {
+      border: 0;
+      border-top: 2px solid #000;
+      margin: 0;
+    }
+    
+    .header-logo {
+      width: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .header-logo img {
+      max-width: 100px;
+      max-height: 60px;
+      object-fit: contain;
+    }
+
+    .main-title {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 25px;
+    }
+    
+    .sub-title {
+      text-align: center;
+      font-size: 16px;
+      font-weight: normal;
+      margin-top: 0;
+      margin-bottom: 25px;
+    }
+
+    .two-columns {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      margin-top: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .two-columns .field {
+      flex: 1;
+    }
+    
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      margin-top: 30px;
+    }
+    
+    .footer-row .field {
+      flex: 1;
+    }
+
+    .red-label {
+      color: #d00000;
+      font-weight: bold;
+    }
+
+    .form-group {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group label {
+      white-space: nowrap;
+      margin-bottom: 0;
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .table-note {
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    .section,
+    .footer,
+    .table-note {
+      font-size: 13px;
+    }
+
+    .section,
+    .footer {
+      line-height: 1.4;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header-banner">
+    <div class="header-left">
+      <div class="confidential">CONFIDENTIAL</div>
+      <hr class="confidential-line">
+    </div>
+  
+    <div class="header-logo">
+      <img src="{% static 'img/epfl-logo.svg' %}" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+    </div>
+    
+  </div>
+  
+  <h1 class="main-title">
+    Activities engaged in outside of EPFL<br>
+    Disclosure form for professors
+  </h1>
+
+  <div class="section">
+    According to the « Directive concerning the management of conflicts of interest within the context of activities or public duties engaged in outside the working sphere » dated December 1st, 2005 (LEX 4.1.1), professors shall disclose outside activities at regular intervals, whenever a new activity is taken up or in the event of any change.
+    <br><br>
+    Activities which have to be included in the disclosure are described at articles 1.a, 7 and 8 of LEX 4.1.1. Data will be filed and treated confidentially, subject to the Freedom of Information Act (FoIA, RS 152.3).
+  </div>
+
+  <div class="two-columns">
+    <div class="field">
+      <span class="red-label">Full Name:</span> <span class="line">{{ professor.get_full_name }}</span>
+    </div>
+  
+    <div class="field">
+      <span class="red-label">EPFL School / College:</span> <span class="line">{{ professor.unit }}</span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 5%;">#</th>
+        <th>Type and area of activity (including dual professorships)</th>
+        <th>Name and address of principal (or institution)</th>
+        <th>Start Date</th>
+        <th>End Date</th>
+      </tr>
+    </thead>
+    <tbody>
+        {% for activity in activities %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ activity.activity }}</td>
+            <td>{{ activity.principal }}</td>
+            <td>{{ activity.date_start|date:"d.m.Y" }}</td>
+            <td>
+                {% if activity.date_end %}
+                {{ activity.date_end|date:"d.m.Y" }}
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">No activity declared.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="table-note">
+    * additional signed and dated pages may be added, as needed
+  </div>
+
+  <div class="footer">
+    <strong>With my signature, I certify that this list of activities is complete and accurate and declare not to have devoted to them more than the equivalent of 1 day per week for a full-time position.</strong>
+    <br><br>
+
+    <div class="footer-row">
+      <div class="field">
+        <span class="red-label">Date:</span> <span class="signature-line"></span>
+      </div>
+    
+      <div class="field">
+        <span class="red-label">Signature:</span> <span class="signature-line"></span>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

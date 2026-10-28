@@ -1,0 +1,156 @@
+- name: Nginx - ConfigMap
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: nginx
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app: nginx
+      data:
+        nginx.conf: "{{ lookup('template', 'nginx.conf') }}"
+  register: _nginx_configmap
+
+- name: Deploy Nginx
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: nginx
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        replicas: "{{ resources.nginx.replicas }}"
+        selector:
+          matchLabels:
+            app: nginx
+        template:
+          metadata:
+            labels:
+              app: nginx
+          spec:
+            containers:
+              - name: nginx
+                image: "{{ registry }}/nginx:1.28.0-alpine"
+                imagePullPolicy: Always
+                ports:
+                  - containerPort: 8080
+                    name: http
+                resources:
+                  requests:
+                    cpu: "{{ resources.nginx.requests.cpu }}"
+                    memory: "{{ resources.nginx.requests.memory }}"
+                  limits:
+                    memory: "{{ resources.nginx.requests.memory }}"
+                livenessProbe:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 5
+                  timeoutSeconds: 3
+                readinessProbe:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 5
+                  timeoutSeconds: 3
+                volumeMounts:
+                  - name: django-static
+                    mountPath: /staticfiles
+                    readOnly: true
+                  - name: django-media
+                    mountPath: /mediafiles
+                    readOnly: true  
+                  - name: nginx
+                    mountPath: /etc/nginx/conf.d
+                    readOnly: true
+            volumes:
+              - name: django-static
+                persistentVolumeClaim:
+                  claimName: django
+              - name: django-media
+                persistentVolumeClaim:
+                  claimName: django-media
+              - name: nginx
+                configMap:
+                  name: nginx
+            imagePullSecrets:
+              - name: "{{ pull_secret }}"
+
+- name: Nginx - PodDisruptionBudget
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: "nginx"
+        namespace: "{{ inventory_hostname }}"
+      spec:
+        minAvailable: 1
+        selector:
+          matchLabels:
+            app: "nginx"
+
+- name: Nginx - Service
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: "nginx"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          app: "nginx"
+      spec:
+        ports:
+          - name: nginx
+            port: 8080
+            targetPort: 8080
+        type: ClusterIP
+        selector:
+          app: "nginx"
+
+- name: Nginx - Routes
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        name: "{{ django.domain }}"
+        namespace: "{{ inventory_hostname }}"
+        labels:
+          route: "{{ avi_route_access_level }}"
+        annotations:
+          haproxy.router.openshift.io/balance: roundrobin
+          haproxy.router.openshift.io/disable_cookies: "true"
+      spec:
+        host: "{{ django.domain }}"
+        to:
+          kind: Service
+          name: "nginx"
+        port:
+          targetPort: nginx
+        tls:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+
+- name: Nginx - Restart
+  when: >-
+    ('nginx.restart' in ansible_run_tags)
+    or
+    ( (_nginx_configmap | default({})) is changed )
+  local_action:
+    module: shell
+    cmd: "oc patch deployment/nginx --namespace {{ inventory_hostname }} --patch
+      '{
+          \"spec\": {
+            \"template\": {
+              \"metadata\": {
+                \"annotations\": {
+                  \"last-restart\": \"{{ ansible_date_time.iso8601 }}\"
+                }
+              }
+            }
+          }
+        }'"
+  tags: nginx.restart

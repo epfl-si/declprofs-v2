@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+.select2-container .select2-selection--single {
+    height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 38px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+}
+
+.table-boxed .col-compact {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.td-inactive {
+    background-color: #f2f2f2;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; flex-wrap: wrap;">
+
+    <div class="col-md-9">
+
+        <h3>
+            Campaign <span id="campaign-title-year">{{ campaign.year }}</span>
+
+            <span
+                id="campaign-status"
+                class="badge badge-pill {% if campaign.is_open %}badge-success{% else %}badge-danger{% endif %}"
+            >
+                {% if campaign.is_open %}
+                    Open
+                {% else %}
+                    Closed
+                {% endif %}
+            </span>
+        </h3>
+
+        <!-- Filters -->
+        <form method="get" id="filter-form" class="mb-4">
+
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+
+                <div class="card-body">
+
+                    <div class="d-flex align-items-start gap-3 flex-wrap">
+
+                        {% if user.is_superuser %}
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#user"></use>
+                                    </svg>
+                                </span>
+
+                                <select id="professor"
+                                        name="professor"
+                                        class="form-control select2-user"
+                                        style="width:350px;">
+                                    <option value=""></option>
+
+                                    {% for people in professors %}
+                                    <option value="{{ people.sciper }}"
+                                            {% if request.GET.professor == people.sciper %}
+                                                selected
+                                            {% endif %}>
+                                        {{ people }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="pr-4">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <svg width="16" height="16">
+                                        <use xlink:href="#calendar"></use>
+                                    </svg>
+                                </span>
+
+                                <input
+                                    type="number"
+                                    id="year"
+                                    name="year"
+                                    class="form-control"
+                                    style="width:110px;"
+                                    min="2000"
+                                    max="2100"
+                                    value="{{ request.GET.year }}"
+                                    placeholder="Year">
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                Leave blank for all years
+                            </small>
+                        </div>
+
+                        <div class="d-flex">
+                            <a href="{% url 'campaign' %}" class="btn btn-sm btn-secondary">
+                                Reset
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </form>
+
+        <!-- Table Eligibility -->
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="table-responsive">
+
+                <table class="table table-boxed">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            {% for year in years %}
+                            <th class="col-compact text-center">{{ year }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td>{{ row.user.last_name }} {{ row.user.first_name }} </td>
+
+                            {% for user_year in row.years %}
+                            {% if user_year %}
+                            <td class="col-compact text-center {% if not user_year.is_employed or user_year.is_exempted %}td-inactive{% endif %}">
+                                {% if not user_year.is_employed or user_year.is_exempted %}
+                                {% else %}
+                                <input
+                                    type="checkbox"
+                                    name="eligible_{{ user_year.id }}"
+                                    {% if user_year.is_eligible %}checked{% endif %}
+                                >
+                                {% endif %}
+                            </td>
+                            {% else %}
+                            <td class="col-compact text-center">
+                                -
+                            </td>
+                            {% endif %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+
+            <button
+                type="submit"
+                name="save_eligibility"
+                class="btn btn-primary mt-4">
+                Save eligibility
+            </button>
+
+        </form>
+    </div>
+
+    <!-- Campaign -->
+    <div class="col-md-3">
+
+        <form method="post" class="campaign-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="campaign-year">
+                    Year
+                </label>
+
+                <select
+                    id="campaign-year"
+                    name="year"
+                    class="form-control"
+                    style="width: 100%;"
+                >
+                    {% if campaign %}
+                        <option value="{{ campaign.year }}" selected>
+                            {{ campaign.year }}
+                        </option>
+                    {% elif request.GET.campaign_year %}
+                        <option value="{{ request.GET.campaign_year }}" selected>
+                            {{ request.GET.campaign_year }}
+                        </option>
+                    {% endif %}
+
+                    {% for year in campaign_years %}
+                        {% if not campaign or year != campaign.year %}
+                            <option value="{{ year }}">
+                                {{ year }}
+                            </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+
+                {% for error in form.year.errors %}
+                <div class="error">
+                    {{ error }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.opening_date.id_for_label }}">
+                    Opening date
+                </label>
+
+                {{ form.opening_date }}
+
+                {% for error in form.opening_date.errors %}
+                <div class="error">
+                    {{ error }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.closing_date.id_for_label }}">
+                    Closing date
+                </label>
+
+                {{ form.closing_date }}
+
+                {% for error in form.closing_date.errors %}
+                <div class="error">
+                    {{ error }}
+                </div>
+                {% endfor %}
+            </div>
+
+            <button 
+                type="submit"
+                name="save_campaign"
+                class="btn btn-primary">
+                Save
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}
+
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('.select2-user').select2({
+
+        placeholder: "-------",
+        allowClear: true,
+        minWidth: "350px",
+
+        templateResult: function(item) {
+
+            if (!item.id) {
+                return item.text;
+            }
+
+            let search = $('.select2-search__field').val();
+
+            if (!search) {
+                return item.text;
+            }
+
+            let regex = new RegExp(
+                '(' + search + ')',
+                'ig'
+            );
+
+            return $('<span>' +
+                item.text.replace(regex, '<strong>$1</strong>') +
+                '</span>');
+        },
+
+        escapeMarkup: function(markup) {
+            return markup;
+        }
+    });
+
+    $('#campaign-year').select2({
+        tags: true,
+        width: '100%',
+        placeholder: "Select or enter a year",
+        allowClear: false,
+
+        createTag: function(params) {
+
+            let term = $.trim(params.term);
+
+            if (!term) {
+                return null;
+            }
+
+            // Accepter uniquement une année à 4 chiffres
+            if (!/^\d{4}$/.test(term)) {
+                return null;
+            }
+
+            return {
+                id: term,
+                text: term,
+                newTag: true
+            };
+        }
+    });
+
+    $('#campaign-year').on('change', function () {
+        let year = $(this).val();
+
+        if (!year) {
+            return;
+        }
+
+        $.ajax({
+            url: "{% url 'campaign_by_year' %}",
+            data: {
+                year: year
+            },
+
+            success: function(data) {
+
+                $('#campaign-title-year').text(year);
+
+                if (data.exists) {
+                    $('#id_opening_date').val(data.opening_date);
+                    $('#id_closing_date').val(data.closing_date);
+
+                    if (data.is_open) {
+                        $('#campaign-status')
+                            .removeClass('bg-danger')
+                            .addClass('bg-success')
+                            .text('Open');
+                    } else {
+                        $('#campaign-status')
+                            .removeClass('bg-success')
+                            .addClass('bg-danger')
+                            .text('Closed');
+                    }        
+                } else {
+                    // New campaign
+                    $('#id_opening_date').val("");
+                    $('#id_closing_date').val("");
+
+                    $('#campaign-status')
+                        .removeClass('bg-success')
+                        .addClass('bg-secondary')
+                        .text('Not created');
+                }
+            }
+        });
+    });
+
+    if ($('#professor').length) {
+        $('#professor').on('change', function () {
+            $('#filter-form').submit();
+        });
+    }
+
+    $('#year').on('change', function () {
+        $('#filter-form').submit();
+    });
+
+    setTimeout(function() {
+        document.querySelectorAll('.django-message').forEach(function(message) {
+            message.style.display = 'none';
+        });
+    }, 5000);
+});
+</script>
+{% endblock %}
