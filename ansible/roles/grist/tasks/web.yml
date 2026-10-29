@@ -205,7 +205,7 @@
 
           .test-dm-logo,
           ._cssAppLogo {
-            background-image: url('https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg') !important;
+            background-image: url('https://web2018.epfl.ch/8.7.0/icons/epfl-logo.svg') !important;
             background-color: #f7f7f7 !important;
             background-size: contain !important;
             background-repeat: no-repeat !important;
